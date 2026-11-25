@@ -1,79 +1,80 @@
-# Lyftr AI — LLM Chatbot with Key Failover and Response Caching
+# Lyftr AI Chatbot — LLM Chatbot with Key Failover and Response Caching
 
-A full-stack conversational AI application built using React, FastAPI, LiteLLM, and SQLite. The application demonstrates multi-turn conversational memory, automatic provider API-key failover, response caching, per-request token metadata, and configurable failure simulation.
+A full-stack AI chatbot built using React, FastAPI, LiteLLM, and SQLite. It supports multi-turn conversations, automatic API-key failover, response caching, and session history.
 
 ## 1. Live URLs
 
-- Frontend: `ADD_DEPLOYED_FRONTEND_URL`
-- Backend: `ADD_DEPLOYED_BACKEND_URL`
-- Health: `ADD_DEPLOYED_BACKEND_URL/health`
-
-Replace these placeholders with the public deployment URLs before submission.
+- **Frontend:** https://lyftr-ai-chatbot-frontend-4rys.onrender.com
+- **Backend:** https://lyftr-ai-chatbot-lbcz.onrender.com
+- **Backend Health:** https://lyftr-ai-chatbot-lbcz.onrender.com/health
+- **GitHub Repository:** https://github.com/DivijPathak286/lyftr-ai-chatbot
 
 ## 2. Run locally
 
 ### Requirements
 
-- Docker Desktop / Docker Engine and Docker Compose
-- API keys for a supported LLM provider
-- Node.js 22+ and Python 3.12+ for running without Docker
+- Python 3.12+
+- Node.js 22+
+- Docker Desktop and Docker Compose
+- Gemini API keys (at least two for failover testing)
 
 ### Using Docker
 
-1. Copy `.env.example` to `.env`.
-2. Configure your provider API keys and model.
-3. Start the application:
+1. Clone the repository:
 
    ```bash
-   docker compose up -d --build
+   git clone https://github.com/DivijPathak286/lyftr-ai-chatbot.git
+   cd lyftr-ai-chatbot
    ```
 
-4. Open the frontend at `http://localhost:3000`.
-5. Access the backend at `http://localhost:8000`.
-6. Access API documentation at `http://localhost:8000/docs`.
+2. Create your environment file:
 
-Stop the application:
+   ```bash
+   cp .env.example .env
+   ```
 
-```bash
-docker compose down
-```
+3. Add your API keys and configuration to `.env`.
 
-The named Docker volume `app_data` stores SQLite database files under `/data`, allowing conversation history to persist across container restarts.
+4. Start the application:
+
+   ```bash
+   docker compose up --build -d
+   ```
+
+5. Access the application:
+
+   - Frontend: http://localhost:3000
+   - Backend: http://localhost:8000
+   - API documentation: http://localhost:8000/docs
+
+6. Stop the application:
+
+   ```bash
+   docker compose down
+   ```
 
 ### Without Docker
 
-**Backend**
+Backend:
 
 ```bash
 cd backend
 python -m venv .venv
 ```
 
-Activate the virtual environment:
-
-```bash
-# Windows
-.venv\Scripts\activate
-
-# macOS/Linux
-source .venv/bin/activate
-```
-
-Install dependencies:
+Activate the virtual environment and install dependencies:
 
 ```bash
 pip install -r requirements.txt
 ```
 
-Configure the required environment variables and start the backend:
+Run the backend:
 
 ```bash
-uvicorn app.main:app --reload --port 8000
+uvicorn app.main:app --reload
 ```
 
-**Frontend**
-
-Open another terminal:
+Frontend (in another terminal):
 
 ```bash
 cd frontend
@@ -81,101 +82,116 @@ npm install
 npm run dev
 ```
 
-The Vite development server normally runs at `http://localhost:5173`.
-
 ## 3. Design decisions
 
 ### API-key failover
 
-The backend supports multiple configured provider API keys and attempts them in sequence. Provider failures, including rate limits and server errors, can trigger fallback attempts.
-
-The response metadata identifies the successful key without exposing its secret value.
+- Supports multiple Gemini API keys.
+- Automatically attempts another key when a provider request fails.
+- Handles rate limits and provider failures.
+- Includes a failure simulation mechanism for testing failover.
 
 ### Response caching
 
-LiteLLM caching is used to reuse eligible previous model responses and reduce unnecessary inference requests.
-
-The cache distinguishes requests based on their model and message inputs. Cache responses are identified using `LLM_CACHE`, while new model requests are identified using `LIVE_INFERENCE`.
-
-The current local cache is in-memory and is reset when the backend process restarts.
+- Uses LiteLLM's local cache.
+- Cache identity considers the model and complete message history.
+- Identical requests can reuse cached responses.
+- Cache hits and live inference are identified in response metadata.
 
 ### SQLite session storage
 
-SQLite stores conversations using session IDs. User and assistant messages are associated with their respective sessions, and conversation history is reconstructed for subsequent requests.
-
-A fresh session starts whenever the frontend page is loaded. Previous conversations remain accessible through the conversation history sidebar.
-
-The Docker named volume ensures database persistence across container restarts.
+- Stores conversation sessions and message history in SQLite.
+- Supports retrieving previous conversations.
+- Stores assistant response metadata alongside messages.
+- Docker uses a named volume for database persistence.
 
 ### Token and latency metadata
 
-Each assistant response includes metadata such as:
+Assistant responses include:
 
 - Resolution source
 - Model name
-- Latency in milliseconds
+- Response latency
 - Input tokens
 - Output tokens
-- Provider key identifier
-- Number of fallback attempts
 
 ## 4. Verification
 
 ### Backend health
 
-```bash
-curl http://localhost:8000/health
+Verified deployed health endpoint:
+
+```text
+GET /health
+```
+
+Expected response:
+
+```json
+{
+  "status": "ok",
+  "keys_configured": 2,
+  "cache_enabled": true
+}
 ```
 
 ### Backend automated tests
 
-Run from the project root:
+Run:
 
 ```bash
-python -m pytest backend/tests -v
+cd backend
+python -m pytest -v
 ```
 
 ### Manual verification
 
-The following scenarios have been tested:
+The following functionality has been verified:
 
-- Backend health endpoint and API-key configuration.
-- Automatic failover when the first API key returns a simulated HTTP 429.
-- HTTP 503 response when all configured keys fail.
-- Failed requests are not stored in conversation history.
-- Cache hit for an identical request in a new session.
-- Live inference for a different request.
-- Per-request token and latency metadata.
-- Multi-turn conversational memory.
-- SQLite conversation history retrieval.
-- Frontend metadata display and required test identifiers.
-- System prompt functionality.
-- Frontend error handling for HTTP 503.
-- New session creation on page refresh.
-- Previous conversation restoration through the sidebar.
-- Database persistence across Docker container restarts.
+- Backend health endpoint returns HTTP 200.
+- Frontend and backend are successfully connected.
+- Live chatbot requests return assistant responses.
+- All five required response metadata fields are displayed.
+- Multi-turn conversations work.
+- Optional system prompts work.
+- API-key failover and failure simulation were tested locally.
+- Cache behavior was verified locally.
+- SQLite session history and Docker volume persistence were tested locally.
 
-Failure simulation can be enabled using `ENABLE_FAILURE_SIMULATION=true` and tested through the `X-Simulate-Failure` request header.
+Note: Deployed cache-hit behavior is still undergoing verification.
 
 ## 5. Setup Used
 
-- Editor: Visual Studio Code
-- AI assistance: ChatGPT
-- Backend: Python 3.12, FastAPI
-- Frontend: React, Vite, Node.js 22
-- LLM integration: LiteLLM and Google Gemini
-- Database: SQLite
-- Containerization: Docker and Docker Compose
-- Testing: Pytest and HTTPX
+### Backend
+
+- Python 3.12
+- FastAPI
+- LiteLLM
+- SQLite
+- Pydantic
+- Uvicorn
+
+### Frontend
+
+- React
+- Vite
+- JavaScript
+- CSS
+
+### Deployment and Infrastructure
+
+- Docker
+- Docker Compose
+- Render
+- GitHub
 
 ## 6. Bonus features (if any)
 
-- Session-level system prompt configuration.
 - Conversation history sidebar.
-- New conversation functionality.
-- Configurable provider failure simulation.
-- Responsive dark-themed interface.
-- SQLite-based conversation persistence.
-- Backend health monitoring.
-- Per-message response metadata.
-- Multi-stage Docker builds.
+- New conversation on page refresh.
+- Optional system prompt configuration.
+- Failure simulation controls.
+- Response metadata display.
+- Multi-key automatic failover.
+- Docker-based deployment.
+- Interactive API documentation through Swagger UI.

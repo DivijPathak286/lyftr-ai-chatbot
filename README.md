@@ -1,12 +1,13 @@
 # Lyftr AI Chatbot — LLM Chatbot with Key Failover and Response Caching
 
-A full-stack AI chatbot built using React, FastAPI, LiteLLM, and SQLite. It supports multi-turn conversations, automatic API-key failover, response caching, and session history.
+A full-stack AI chatbot built using React, FastAPI, LiteLLM, and SQLite. It supports multi-turn conversations, automatic API-key failover, response caching, and persistent session history.
 
 ## 1. Live URLs
 
 - **Frontend:** https://lyftr-ai-chatbot-frontend-4rys.onrender.com
 - **Backend:** https://lyftr-ai-chatbot-lbcz.onrender.com
 - **Backend Health:** https://lyftr-ai-chatbot-lbcz.onrender.com/health
+- **API Documentation:** https://lyftr-ai-chatbot-lbcz.onrender.com/docs
 - **GitHub Repository:** https://github.com/DivijPathak286/lyftr-ai-chatbot
 
 ## 2. Run locally
@@ -55,7 +56,7 @@ A full-stack AI chatbot built using React, FastAPI, LiteLLM, and SQLite. It supp
 
 ### Without Docker
 
-Backend:
+**Backend:**
 
 ```bash
 cd backend
@@ -74,7 +75,7 @@ Run the backend:
 uvicorn app.main:app --reload
 ```
 
-Frontend (in another terminal):
+**Frontend (in another terminal):**
 
 ```bash
 cd frontend
@@ -90,13 +91,15 @@ npm run dev
 - Automatically attempts another key when a provider request fails.
 - Handles rate limits and provider failures.
 - Includes a failure simulation mechanism for testing failover.
+- Returns HTTP 503 when all configured providers are unavailable.
 
 ### Response caching
 
 - Uses LiteLLM's local cache.
 - Cache identity considers the model and complete message history.
-- Identical requests can reuse cached responses.
+- Identical requests can reuse cached responses, including across new sessions.
 - Cache hits and live inference are identified in response metadata.
+- Avoids unnecessary repeated calls to the language model.
 
 ### SQLite session storage
 
@@ -154,11 +157,12 @@ The following functionality has been verified:
 - All five required response metadata fields are displayed.
 - Multi-turn conversations work.
 - Optional system prompts work.
-- API-key failover and failure simulation were tested locally.
-- Cache behavior was verified locally.
+- First-time requests return `LIVE_INFERENCE`.
+- Repeated identical requests in new sessions return `LLM_CACHE`.
+- API-key failover works when the first key encounters a simulated HTTP 429 error.
+- The second API key successfully handles the fallback request.
+- Simulating failure of all API keys returns HTTP 503 with the expected error response.
 - SQLite session history and Docker volume persistence were tested locally.
-
-Note: Deployed cache-hit behavior is still undergoing verification.
 
 ## 5. Setup Used
 
